@@ -1,14 +1,15 @@
-def pregunta_10():
-    """
-    Para cada registro del archivo, en el mismo orden en que aparecen,
-    retorne una tupla con la letra de la primera columna (`letter`), la
-    cantidad de elementos de la cuarta columna (`codes`) y la cantidad de
-    pares de la quinta columna (`metrics`). El resultado es una lista con una
-    tupla por registro.
+import gzip
+from pathlib import Path
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
 
-        [("E", 3, 5), ("A", 3, 4), ("B", 4, 4), ...]
-    """
 
-    raise NotImplementedError
+# Recorre secuencialmente el archivo proyectando la cardinalidad de las columnas 4 y 5 por registro.
+def pregunta_10() -> list[tuple[str, int, int]]:
+    records: list[tuple[str, int, int]] = []
+    with gzip.open(DATA_FILE, mode="rt", encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                letter, _, _, codes, metrics = line.strip().split("\t")
+                records.append((letter, len(codes.split(",")), len(metrics.split(","))))
+    return records

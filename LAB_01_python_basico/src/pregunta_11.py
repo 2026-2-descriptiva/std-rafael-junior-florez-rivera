@@ -1,13 +1,18 @@
-def pregunta_11():
-    """
-    La cuarta columna (`codes`) contiene letras minúsculas separadas por
-    comas. Para cada una de esas letras, sume los valores de la segunda
-    columna (`value`) de los registros en los que aparece. Retorne un
-    diccionario `{letra: suma}` con las letras en orden alfabético.
+from collections import defaultdict
+import gzip
+from pathlib import Path
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
 
-        {"a": 122, "b": 49, "c": 91, ...}
-    """
 
-    raise NotImplementedError
+# Distribuye el valor entero del registro hacia cada codigo asociado y ordena las claves resultantes.
+def pregunta_11() -> dict[str, int]:
+    totals: dict[str, int] = defaultdict(int)
+    with gzip.open(DATA_FILE, mode="rt", encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                _, raw_value, _, codes, _ = line.strip().split("\t")
+                value = int(raw_value)
+                for code in codes.split(","):
+                    totals[code] += value
+    return dict(sorted(totals.items()))

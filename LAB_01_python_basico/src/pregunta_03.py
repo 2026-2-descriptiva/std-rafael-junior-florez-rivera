@@ -1,12 +1,16 @@
-def pregunta_03():
-    """
-    Sume los valores de la segunda columna (`value`) para cada letra de la
-    primera columna (`letter`). Retorne una lista de tuplas `(letra, suma)`
-    ordenada alfabéticamente por la letra.
+from collections import defaultdict
+import gzip
+from pathlib import Path
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
 
-        [("A", 53), ("B", 36), ("C", 27), ...]
-    """
 
-    raise NotImplementedError
+# Acumula sumas por categoria con defaultdict(int) para evitar verificaciones manuales de claves.
+def pregunta_03() -> list[tuple[str, int]]:
+    totals: dict[str, int] = defaultdict(int)
+    with gzip.open(DATA_FILE, mode="rt", encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                letter, value, *_ = line.split("\t")
+                totals[letter] += int(value)
+    return sorted(totals.items())

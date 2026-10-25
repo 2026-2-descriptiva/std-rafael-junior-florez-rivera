@@ -1,12 +1,12 @@
-def pregunta_04():
-    """
-    Cuente cuántos registros hay en cada mes, usando la fecha de la tercera
-    columna (`date`). Represente el mes como un texto de dos dígitos y retorne
-    una lista de tuplas `(mes, cantidad)` ordenada por el mes.
+from collections import Counter
+import gzip
+from pathlib import Path
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
 
-        [("01", 3), ("02", 4), ("03", 2), ...]
-    """
 
-    raise NotImplementedError
+# Extrae el mes como subcadena ISO (MM) para preservar el cero inicial y el orden lexicografico.
+def pregunta_04() -> list[tuple[str, int]]:
+    with gzip.open(DATA_FILE, mode="rt", encoding="utf-8") as file:
+        months = Counter(line.split("\t")[2][5:7] for line in file if line.strip())
+    return sorted(months.items())

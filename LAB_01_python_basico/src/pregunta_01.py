@@ -1,11 +1,10 @@
-def pregunta_01():
-    """
-    Calcule la suma de los valores de la segunda columna (`value`) del
-    archivo `data/data.csv.gz` y retorne el resultado como un número entero.
+import gzip
+from pathlib import Path
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
 
-        214
-    """
 
-    raise NotImplementedError
+# Procesa el archivo en streaming con un generador para sumar la columna 2 en memoria constante.
+def pregunta_01() -> int:
+    with gzip.open(DATA_FILE, mode="rt", encoding="utf-8") as file:
+        return sum(int(line.split("\t")[1]) for line in file if line.strip())

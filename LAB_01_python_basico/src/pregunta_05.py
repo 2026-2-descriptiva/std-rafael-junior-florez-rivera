@@ -1,12 +1,20 @@
-def pregunta_05():
-    """
-    Para cada letra de la primera columna (`letter`), encuentre el valor
-    máximo y el valor mínimo de la segunda columna (`value`). Retorne una lista
-    de tuplas `(letra, máximo, mínimo)` ordenada alfabéticamente por la letra.
+import gzip
+from pathlib import Path
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "data.csv.gz"
 
-        [("A", 9, 2), ("B", 9, 1), ...]
-    """
 
-    raise NotImplementedError
+# Mantiene solo los extremos (maximo, minimo) por letra en una pasada sin almacenar listas completas.
+def pregunta_05() -> list[tuple[str, int, int]]:
+    bounds: dict[str, tuple[int, int]] = {}
+    with gzip.open(DATA_FILE, mode="rt", encoding="utf-8") as file:
+        for line in file:
+            if line.strip():
+                letter, raw_value, *_ = line.split("\t")
+                value = int(raw_value)
+                if letter in bounds:
+                    high, low = bounds[letter]
+                    bounds[letter] = (max(high, value), min(low, value))
+                else:
+                    bounds[letter] = (value, value)
+    return [(letter, high, low) for letter, (high, low) in sorted(bounds.items())]
