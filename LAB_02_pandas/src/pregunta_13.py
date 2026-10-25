@@ -1,18 +1,12 @@
-def pregunta_13():
-    """
-    Combine las tablas `data/tbl0.tsv` y `data/tbl2.tsv` usando la columna
-    `c0`, que ambas comparten. Luego, sume los valores de la columna `c5b`
-    para cada categoría de la columna `c1`. Retorne una Serie de Pandas cuyo
-    índice son las categorías, en orden alfabético, y cuyos valores son las
-    sumas.
+from pathlib import Path
+import pandas as pd
 
-    Ejemplo del formato de la respuesta:
+DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 
-        c1
-        A    146
-        B    134
-        C     81
-        ...
-    """
 
-    raise NotImplementedError
+# Cruza las tablas por llave primaria c0 proyectando solo columnas utiles antes de sumar por c1.
+def pregunta_13() -> pd.Series:
+    tbl0 = pd.read_csv(DATA_DIR / "tbl0.tsv", sep="\t", usecols=["c0", "c1"])
+    tbl2 = pd.read_csv(DATA_DIR / "tbl2.tsv", sep="\t", usecols=["c0", "c5b"])
+    merged = pd.merge(tbl0, tbl2, on="c0")
+    return merged.groupby("c1")["c5b"].sum()

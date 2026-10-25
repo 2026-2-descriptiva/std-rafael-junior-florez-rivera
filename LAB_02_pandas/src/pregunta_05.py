@@ -1,16 +1,10 @@
-def pregunta_05():
-    """
-    Usando `data/tbl0.tsv`, encuentre el valor máximo de la columna `c2` para
-    cada categoría de la columna `c1`. Retorne una Serie de Pandas cuyo índice
-    son las categorías, en orden alfabético, y cuyos valores son los máximos.
+from pathlib import Path
+import pandas as pd
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "tbl0.tsv"
 
-        c1
-        A    9
-        B    9
-        C    9
-        ...
-    """
 
-    raise NotImplementedError
+# Determina el valor maximo de c2 por categoria usando reduccion vectorizada.
+def pregunta_05() -> pd.Series:
+    df = pd.read_csv(DATA_FILE, sep="\t")
+    return df.groupby("c1")["c2"].max()

@@ -1,16 +1,10 @@
-def pregunta_03():
-    """
-    Usando `data/tbl0.tsv`, cuente cuántos registros hay para cada categoría
-    de la columna `c1`. Retorne una Serie de Pandas cuyo índice son las
-    categorías, en orden alfabético, y cuyos valores son las cantidades.
+from pathlib import Path
+import pandas as pd
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "tbl0.tsv"
 
-        c1
-        A     8
-        B     7
-        C     5
-        ...
-    """
 
-    raise NotImplementedError
+# Contabiliza frecuencias con value_counts y ordena el indice para preservar orden alfabetico.
+def pregunta_03() -> pd.Series:
+    df = pd.read_csv(DATA_FILE, sep="\t")
+    return df["c1"].value_counts().sort_index()

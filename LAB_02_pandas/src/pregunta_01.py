@@ -1,11 +1,10 @@
-def pregunta_01():
-    """
-    ¿Cuántos registros tiene la tabla `data/tbl0.tsv`? Retorne la cantidad
-    como un número entero.
+from pathlib import Path
+import pandas as pd
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "tbl0.tsv"
 
-        40
-    """
 
-    raise NotImplementedError
+# Obtiene el conteo de registros directamente desde shape[0] sin recorrer filas.
+def pregunta_01() -> int:
+    df = pd.read_csv(DATA_FILE, sep="\t")
+    return df.shape[0]

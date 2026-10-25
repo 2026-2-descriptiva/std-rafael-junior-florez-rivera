@@ -1,11 +1,10 @@
-def pregunta_02():
-    """
-    ¿Cuántas columnas tiene la tabla `data/tbl0.tsv`? Retorne la cantidad
-    como un número entero.
+from pathlib import Path
+import pandas as pd
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "tbl0.tsv"
 
-        4
-    """
 
-    raise NotImplementedError
+# Extrae la cardinalidad de columnas desde shape[1] sobre el esquema cargado.
+def pregunta_02() -> int:
+    df = pd.read_csv(DATA_FILE, sep="\t")
+    return df.shape[1]

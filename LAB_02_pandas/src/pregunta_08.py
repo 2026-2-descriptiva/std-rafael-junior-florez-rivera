@@ -1,15 +1,10 @@
-def pregunta_08():
-    """
-    Retorne la tabla `data/tbl0.tsv` completa con una columna adicional
-    llamada `suma`, al final, cuyo valor en cada fila es `c0 + c2`.
+from pathlib import Path
+import pandas as pd
 
-    Ejemplo del formato de la respuesta:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "tbl0.tsv"
 
-            c0 c1  c2          c3  suma
-        0    0  E   1  1999-02-28     1
-        1    1  A   2  1999-10-28     3
-        2    2  B   5  1998-05-02     7
-        ...
-    """
 
-    raise NotImplementedError
+# Genera la columna derivada mediante suma vectorizada con assign sin mutar la tabla base.
+def pregunta_08() -> pd.DataFrame:
+    df = pd.read_csv(DATA_FILE, sep="\t")
+    return df.assign(suma=df["c0"] + df["c2"])
