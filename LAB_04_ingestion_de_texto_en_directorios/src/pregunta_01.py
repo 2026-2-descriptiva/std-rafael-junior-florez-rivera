@@ -1,29 +1,24 @@
-def pregunta_01():
-    """
-    Las frases de este laboratorio no están en una tabla, sino en miles de
-    archivos de texto organizados en carpetas. Dentro de `data/` hay dos
-    carpetas, `train/` y `test/`, y cada una contiene las carpetas
-    `negative/`, `neutral/` y `positive/`. Cada archivo `.txt` contiene una
-    frase, y la carpeta donde se encuentra indica su sentimiento.
+from pathlib import Path
+import pandas as pd
 
-    Su tarea es construir un dataset para cada división y guardarlo en:
+BASE_DIR = Path(__file__).resolve().parents[1]
+DATA_DIR = BASE_DIR / "data"
+SUBMISSION_DIR = BASE_DIR / "submission"
 
-    - `submission/train_dataset.csv`
-    - `submission/test_dataset.csv`
 
-    Cada archivo debe tener dos columnas: `phrase`, con el texto de la frase,
-    y `target`, con el nombre de la carpeta de sentimiento (`negative`,
-    `neutral` o `positive`). Recorra las carpetas y los archivos en orden
-    alfabético, de modo que el resultado sea siempre el mismo. No guarde el
-    índice de Pandas en el CSV.
+# Recorre categorias y archivos en orden lexicografico determinista para consolidar frases limpias por particion.
+def _load_split(split_dir: Path) -> pd.DataFrame:
+    rows = [
+        {"phrase": txt_file.read_text(encoding="utf-8").strip(), "target": category_dir.name}
+        for category_dir in sorted(p for p in split_dir.iterdir() if p.is_dir())
+        for txt_file in sorted(category_dir.glob("*.txt"))
+    ]
+    return pd.DataFrame(rows, columns=["phrase", "target"])
 
-    Ejemplo del formato de cada archivo:
 
-        phrase,target
-        "The real estate company posted a net loss ...",negative
-        ...
-        "Cardona slowed her vehicle , turned around ...",neutral
-        ...
-    """
-
-    raise NotImplementedError
+# Exporta los conjuntos train y test sin indice para cumplir el contrato de evaluacion en submission/.
+def pregunta_01() -> None:
+    SUBMISSION_DIR.mkdir(parents=True, exist_ok=True)
+    for split in ("train", "test"):
+        df = _load_split(DATA_DIR / split)
+        df.to_csv(SUBMISSION_DIR / f"{split}_dataset.csv", index=False, encoding="utf-8")
