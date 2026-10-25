@@ -1,29 +1,42 @@
-def pregunta_01():
-    """
-    El archivo `data/clusters_report.txt` es un reporte de clústeres de
-    palabras clave pensado para ser leído por una persona, no por un programa:
-    los encabezados ocupan varias líneas, las columnas están alineadas con
-    espacios y la lista de palabras clave de un clúster continúa en las líneas
-    siguientes.
+from pathlib import Path
+import re
+import pandas as pd
 
-    Su tarea es convertir ese reporte en un DataFrame de Pandas con una fila
-    por clúster y las columnas:
+DATA_FILE = Path(__file__).resolve().parents[1] / "data" / "clusters_report.txt"
+CLUSTER_HEADER = re.compile(r"^\s*(\d+)\s+(\d+)\s+([\d,]+)\s*%\s+(.*)$")
 
-    - `cluster`: número del clúster, como entero.
-    - `cantidad_de_palabras_clave`: como entero.
-    - `porcentaje_de_palabras_clave`: como número decimal; por ejemplo, el
-      texto `15,9 %` debe quedar como `15.9`.
-    - `principales_palabras_clave`: todas las palabras clave del clúster en un
-      solo texto, separadas por una coma y un único espacio.
 
-    Retorne el DataFrame.
+# Reconstruye registros multilinea mediante anclaje regex de inicio de cluster y normaliza espacios y puntuacion.
+def pregunta_01() -> pd.DataFrame:
+    records: list[dict[str, int | float | list[str]]] = []
 
-    Ejemplo del formato de la respuesta (se omite la última columna):
+    with open(DATA_FILE, mode="r", encoding="utf-8") as file:
+        for line in list(file)[4:]:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if match := CLUSTER_HEADER.match(line):
+                records.append(
+                    {
+                        "cluster": int(match.group(1)),
+                        "cantidad_de_palabras_clave": int(match.group(2)),
+                        "porcentaje_de_palabras_clave": float(match.group(3).replace(",", ".")),
+                        "keywords": [match.group(4).strip()],
+                    }
+                )
+            else:
+                records[-1]["keywords"].append(stripped)
 
-           cluster  cantidad_de_palabras_clave  porcentaje_de_palabras_clave
-        0        1                         105                          15.9
-        1        2                         102                          15.4
-        ...
-    """
-
-    raise NotImplementedError
+    rows = [
+        {
+            "cluster": item["cluster"],
+            "cantidad_de_palabras_clave": item["cantidad_de_palabras_clave"],
+            "porcentaje_de_palabras_clave": item["porcentaje_de_palabras_clave"],
+            "principales_palabras_clave": ", ".join(
+                " ".join(phrase.split())
+                for phrase in " ".join(item["keywords"]).removesuffix(".").split(",")
+            ),
+        }
+        for item in records
+    ]
+    return pd.DataFrame(rows)
