@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 
 
@@ -50,4 +52,95 @@ def pregunta_01() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         ...
     """
 
-    raise NotImplementedError
+    base_dir = Path(__file__).resolve().parents[1]
+    data_path = base_dir / "data" / "superstore_orders.csv.gz"
+    submission_dir = base_dir / "submission"
+    submission_dir.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(data_path, sep=";", decimal=",")
+
+    lines_count = len(df)
+    orders_count = df["Order ID"].nunique()
+    total_sales = df["Sales"].sum()
+    total_profit = df["Profit"].sum()
+    profit_margin = total_profit / total_sales
+    loss_lines = (df["Profit"] < 0).sum()
+    loss_line_rate = loss_lines / lines_count
+    lost_profit = abs(df.loc[df["Profit"] < 0, "Profit"].sum())
+
+    profitability_summary = pd.DataFrame(
+        [
+            {
+                "lines": lines_count,
+                "orders": orders_count,
+                "sales": total_sales,
+                "profit": total_profit,
+                "profit_margin": profit_margin,
+                "loss_lines": loss_lines,
+                "loss_line_rate": loss_line_rate,
+                "lost_profit": lost_profit,
+            }
+        ]
+    )
+
+    def get_discount_band(d):
+        if d == 0:
+            return "0%"
+        elif d <= 0.05:
+            return "1%-5%"
+        elif d <= 0.10:
+            return "6%-10%"
+        return "más de 10%"
+
+    df["discount_band"] = df["Discount"].apply(get_discount_band)
+
+    bands = ["0%", "1%-5%", "6%-10%", "más de 10%"]
+    disc_rows = []
+    for band in bands:
+        sub = df[df["discount_band"] == band]
+        sub_sales = sub["Sales"].sum()
+        sub_profit = sub["Profit"].sum()
+        sub_lost = abs(sub.loc[sub["Profit"] < 0, "Profit"].sum())
+        disc_rows.append(
+            {
+                "discount_band": band,
+                "lines": len(sub),
+                "sales": sub_sales,
+                "profit": sub_profit,
+                "profit_margin": sub_profit / sub_sales if sub_sales != 0 else 0.0,
+                "loss_line_rate": (sub["Profit"] < 0).mean() if len(sub) > 0 else 0.0,
+                "lost_profit": sub_lost,
+            }
+        )
+    discount_summary = pd.DataFrame(disc_rows)
+
+    seg_rows = []
+    for (seg, cat), sub in df.groupby(["Customer Segment", "Product Category"]):
+        if len(sub) >= 100:
+            sub_sales = sub["Sales"].sum()
+            sub_profit = sub["Profit"].sum()
+            sub_lost = abs(sub.loc[sub["Profit"] < 0, "Profit"].sum())
+            seg_rows.append(
+                {
+                    "Customer Segment": seg,
+                    "Product Category": cat,
+                    "lines": len(sub),
+                    "sales": sub_sales,
+                    "profit": sub_profit,
+                    "profit_margin": sub_profit / sub_sales if sub_sales != 0 else 0.0,
+                    "lost_profit": sub_lost,
+                }
+            )
+
+    priority_segments = (
+        pd.DataFrame(seg_rows)
+        .sort_values("lost_profit", ascending=False)
+        .head(5)
+        .reset_index(drop=True)
+    )
+
+    profitability_summary.to_csv(submission_dir / "profitability_summary.csv", index=False)
+    discount_summary.to_csv(submission_dir / "discount_summary.csv", index=False)
+    priority_segments.to_csv(submission_dir / "priority_segments.csv", index=False)
+
+    return profitability_summary, discount_summary, priority_segments
