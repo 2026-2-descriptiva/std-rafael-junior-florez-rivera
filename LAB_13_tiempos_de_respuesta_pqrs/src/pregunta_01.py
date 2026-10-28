@@ -1,3 +1,6 @@
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 
 
@@ -61,4 +64,107 @@ def pregunta_01() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         ...
     """
 
-    raise NotImplementedError
+    base_dir = Path(__file__).resolve().parents[1]
+    data_dir = base_dir / "data"
+    submission_dir = base_dir / "submission"
+    submission_dir.mkdir(parents=True, exist_ok=True)
+
+    letter = pd.read_csv(
+        data_dir / "historical_requests_letter.csv.gz"
+    ).drop_duplicates()
+    letter["channel"] = "letter"
+
+    web = pd.read_csv(
+        data_dir / "historical_requests_web.csv.gz"
+    ).drop_duplicates()
+    web["channel"] = "web"
+
+    df = pd.concat([letter, web], ignore_index=True)
+    df["in_dt"] = pd.to_datetime(df["in_date"])
+    df["out_dt"] = pd.to_datetime(df["out_date"])
+    df["year"] = df["in_dt"].dt.year
+
+    answered = df["out_dt"].notna()
+    b_days = np.zeros(len(df), dtype=float)
+    b_days[~answered] = np.nan
+    b_days[answered] = np.busday_count(
+        (df.loc[answered, "in_dt"] + pd.Timedelta(days=1)).values.astype(
+            "datetime64[D]"
+        ),
+        (df.loc[answered, "out_dt"] + pd.Timedelta(days=1)).values.astype(
+            "datetime64[D]"
+        ),
+    )
+    df["business_days"] = b_days
+    df["calendar_days"] = (df["out_dt"] - df["in_dt"]).dt.days
+    df["is_answered"] = answered
+    df["is_pending"] = ~answered
+    df["on_time"] = answered & (df["business_days"] <= 15)
+
+    ch_rows = []
+    for ch in ["letter", "web"]:
+        sub = df[df["channel"] == ch]
+        ch_rows.append(
+            {
+                "channel": ch,
+                "requests": len(sub),
+                "answered": int(sub["is_answered"].sum()),
+                "pending": int(sub["is_pending"].sum()),
+                "median_business_days": float(
+                    sub.loc[sub["is_answered"], "business_days"].median()
+                ),
+                "on_time_rate": float(sub["on_time"].mean()),
+            }
+        )
+    channel_summary = pd.DataFrame(ch_rows)
+
+    yr_rows = []
+    for (yr, ch), sub in df.groupby(["year", "channel"]):
+        yr_rows.append(
+            {
+                "year": int(yr),
+                "channel": ch,
+                "requests": len(sub),
+                "pending": int(sub["is_pending"].sum()),
+                "on_time_rate": float(sub["on_time"].mean()),
+            }
+        )
+    yearly_summary = (
+        pd.DataFrame(yr_rows)
+        .sort_values(["year", "channel"])
+        .reset_index(drop=True)
+    )
+
+    day_order = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+    ]
+    day_rows = []
+    for day in day_order:
+        sub = df[df["day_name"] == day]
+        day_rows.append(
+            {
+                "day_name": day,
+                "requests": len(sub),
+                "median_calendar_days": float(
+                    sub.loc[sub["is_answered"], "calendar_days"].median()
+                ),
+                "median_business_days": float(
+                    sub.loc[sub["is_answered"], "business_days"].median()
+                ),
+            }
+        )
+    entry_day_summary = pd.DataFrame(day_rows)
+
+    channel_summary.to_csv(submission_dir / "channel_summary.csv", index=False)
+    yearly_summary.to_csv(submission_dir / "yearly_summary.csv", index=False)
+    entry_day_summary.to_csv(
+        submission_dir / "entry_day_summary.csv", index=False
+    )
+
+    return channel_summary, yearly_summary, entry_day_summary
