@@ -1,3 +1,9 @@
+import json
+from pathlib import Path
+
+import pandas as pd
+
+
 def pregunta_01():
     """
     Una aseguradora quiere publicar datos de sus afiliados para que un grupo
@@ -80,4 +86,100 @@ def pregunta_01():
         }
     """
 
-    raise NotImplementedError
+    base_dir = Path(__file__).resolve().parents[1]
+    data_path = base_dir / "data" / "insurance.csv.gz"
+    submission_dir = base_dir / "submission"
+    submission_dir.mkdir(parents=True, exist_ok=True)
+
+    df = pd.read_csv(data_path)
+
+    orig_qi = ["age", "sex", "bmi", "children", "region"]
+    orig_sizes = df.groupby(orig_qi).size()
+    original_k = int(orig_sizes.min())
+    original_unique_records = int((orig_sizes == 1).sum())
+
+    age_bins = [17, 29, 39, 49, 100]
+    age_labels = ["18-29", "30-39", "40-49", "50-64"]
+    df["age_group"] = pd.cut(df["age"], bins=age_bins, labels=age_labels)
+
+    bmi_bins = [-float("inf"), 18.5, 25.0, 30.0, float("inf")]
+    bmi_labels = ["bajo peso", "normal", "sobrepeso", "obesidad"]
+    df["bmi_group"] = pd.cut(df["bmi"], bins=bmi_bins, right=False, labels=bmi_labels)
+
+    def map_children(c):
+        if c == 0:
+            return "0"
+        elif c in (1, 2):
+            return "1-2"
+        return "3+"
+
+    df["children_group"] = df["children"].apply(map_children)
+
+    schemes_def = {
+        "with_children": [
+            "age_group",
+            "sex",
+            "bmi_group",
+            "children_group",
+            "region",
+        ],
+        "without_children": ["age_group", "sex", "bmi_group", "region"],
+    }
+
+    schemes_report = {}
+    published_dfs = {}
+
+    for name, qis in schemes_def.items():
+        sizes = df.groupby(qis, observed=False).transform("size")
+        eq_classes = df.groupby(qis, observed=False).ngroups
+        k_before = int(sizes.min())
+
+        published_mask = sizes >= 5
+        pub_df = df[published_mask].copy()
+        published_dfs[name] = pub_df
+
+        supp_records = int((~published_mask).sum())
+        pub_records = int(published_mask.sum())
+        pub_classes = pub_df.groupby(qis, observed=False).ngroups
+
+        smoker_div = pub_df.groupby(qis, observed=False)["smoker"].transform("nunique")
+        no_div_mask = smoker_div == 1
+        no_div_classes = pub_df[no_div_mask].groupby(qis, observed=False).ngroups
+        no_div_records = int(no_div_mask.sum())
+
+        schemes_report[name] = {
+            "quasi_identifiers": qis,
+            "equivalence_classes": eq_classes,
+            "k_before_suppression": k_before,
+            "suppressed_records": supp_records,
+            "published_records": pub_records,
+            "published_classes": pub_classes,
+            "classes_without_smoker_diversity": no_div_classes,
+            "records_without_smoker_diversity": no_div_records,
+        }
+
+    selected_scheme = min(
+        schemes_report.keys(),
+        key=lambda k: schemes_report[k]["suppressed_records"],
+    )
+    published_df = published_dfs[selected_scheme]
+
+    report = {
+        "original_k": original_k,
+        "original_unique_records": original_unique_records,
+        "schemes": schemes_report,
+        "selected_scheme": selected_scheme,
+        "mean_charges_original": float(df["charges"].mean()),
+        "mean_charges_published": float(published_df["charges"].mean()),
+        "smoker_rate_original": float((df["smoker"] == "yes").mean()),
+        "smoker_rate_published": float((published_df["smoker"] == "yes").mean()),
+    }
+
+    report_path = submission_dir / "privacy_report.json"
+    report_path.write_text(json.dumps(report, indent=4), encoding="utf-8")
+
+    out_cols = schemes_def[selected_scheme] + ["smoker", "charges"]
+    published_csv_path = submission_dir / "insurance_published.csv"
+    published_df[out_cols].to_csv(published_csv_path, index=False)
+
+    return report
